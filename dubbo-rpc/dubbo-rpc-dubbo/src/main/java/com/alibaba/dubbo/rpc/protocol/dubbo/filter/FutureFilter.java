@@ -1,0 +1,353 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *     http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+package com.alibaba.dubbo.rpc.protocol.dubbo.filter;
+
+import com.alibaba.dubbo.common.Constants;
+import com.alibaba.dubbo.common.extension.Activate;
+import com.alibaba.dubbo.common.logger.Logger;
+import com.alibaba.dubbo.common.logger.LoggerFactory;
+import com.alibaba.dubbo.remoting.exchange.ResponseCallback;
+import com.alibaba.dubbo.remoting.exchange.ResponseFuture;
+import com.alibaba.dubbo.rpc.Filter;
+import com.alibaba.dubbo.rpc.Invocation;
+import com.alibaba.dubbo.rpc.Invoker;
+import com.alibaba.dubbo.rpc.Result;
+import com.alibaba.dubbo.rpc.RpcContext;
+import com.alibaba.dubbo.rpc.RpcException;
+import com.alibaba.dubbo.rpc.StaticContext;
+import com.alibaba.dubbo.rpc.protocol.dubbo.FutureAdapter;
+import com.alibaba.dubbo.rpc.support.RpcUtils;
+
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
+import java.util.concurrent.Future;
+
+/**
+ * 实现Filter 接口，事件通知过滤器。这里通过 @Activate(group = Constants.CONSUMER)注解指定，只有服务消费者才生效该过滤器.
+ * 说明：
+ * 主要实现框架在调用前后，触发调用用户配置的回调方法
+ */
+@Activate(group = Constants.CONSUMER)
+public class FutureFilter implements Filter {
+
+    protected static final Logger logger = LoggerFactory.getLogger(FutureFilter.class);
+
+    /*
+      oninvoke方法：
+        必须具有与真实的被调用方法sayHello相同的入参列表：例如，oninvoke(String name)
+      onreturn方法：
+        至少要有一个入参且第一个入参必须与sayHello的返回类型相同，接收返回结果：例如，onreturnWithoutParam(String result)
+        可以有多个参数，多个参数的情况下，第一个后边的所有参数都是用来接收sayHello入参的：例如， onreturn(String result, String name)
+      onthrow方法：
+        至少要有一个入参且第一个入参类型为Throwable或其子类，接收返回结果；例如，onthrow(Throwable ex)
+        可以有多个参数，多个参数的情况下，第一个后边的所有参数都是用来接收sayHello入参的：例如，onthrow(Throwable ex, String name)
+     */
+
+
+    /*
+        <!-- 事件通知服务,实现 Notify 接口，实现接口中通知方法：oninvoke（调用之前）、onreturnWithoutParam（调用之后）、onreturn（调用之后）、onthrow（出现异常，只会在provider返回的RpcResult中含有Exception对象时，才会执行） -->
+          <bean id="notifyService"  class="com.alibaba.dubbo.demo.consumer.eventnotify.NotifyService"/>
+
+          <!-- 引用服务 -->
+          <dubbo:reference id="demoService" check="false" interface="com.alibaba.dubbo.demo.DemoService">
+              <!-- 配置事件通知： oninvoke、onreturn、onthrow -->
+               <dubbo:method name="sayHello" timeout="60000" oninvoke="notifyService.oninvoke" onreturn="notifyService.onreturnWithoutParam" onthrow="notifyService.onthrow"/>
+          </dubbo:reference>
+     */
+
+    /**
+     * 服务消费方调用拦截 【注意：该Filter 主要用在事件通知中，当然调用是必须走该方法的】
+     * <p>
+     * 说明：FutureFilter只用在consumer端；不管是同步调用还是异步调用，都会走FutureFilter，执行的过程：
+     * <p>
+     * 1 走 oninvoke 方法
+     * 2 走 真正的目标方法
+     * 3 根据同步还是异步走不同的逻辑
+     * 3.1 同步的话：目标方法的返回结果RpcResult中是否有exception对象，如果有，执行onthrow(Throwable ex, String name)，如果没有，执行onreturn (String result)
+     * 3.2
+     *
+     * @param invoker    service
+     * @param invocation invocation.
+     * @return
+     * @throws RpcException
+     */
+    @Override
+    public Result invoke(final Invoker<?> invoker, final Invocation invocation) throws RpcException {
+        // 1 是否异步调用
+        final boolean isAsync = RpcUtils.isAsync(invoker.getUrl(), invocation);
+
+        // 2 触发前置方法，即 执行 Callback.oninvoke 方法
+        fireInvokeCallback(invoker, invocation);
+
+        // 3 调用服务提供者
+        Result result = invoker.invoke(invocation);
+
+        // 4 异步回调 onreturn/onthrow
+        if (isAsync) {
+            asyncCallback(invoker, invocation);
+            // 5  同步回调用 onreturn/onth
+        } else {
+            syncCallback(invoker, invocation, result);
+        }
+
+        // 返回结果，如果是异步调用或单向调用，结果是空的
+        return result;
+    }
+
+    /**
+     * 同步回调
+     *
+     * @param invoker    Invoker 对象
+     * @param invocation Invocation 对象
+     * @param result     RPC 调用结果
+     */
+    private void syncCallback(final Invoker<?> invoker, final Invocation invocation, final Result result) {
+        // 有异常，触发异常回调
+        if (result.hasException()) {
+            // 注意：如果是consumer自己throw的异常，不会走到这里,而是直接执行 onthrow 方法
+            fireThrowCallback(invoker, invocation, result.getException());
+            // 正常，触发正常回调
+        } else {
+            // 执行 onreturn 方法
+            fireReturnCallback(invoker, invocation, result.getValue());
+        }
+    }
+
+    /**
+     * 异步回调
+     *
+     * @param invoker    Invoker 对象
+     * @param invocation Invocation 对象
+     */
+    private void asyncCallback(final Invoker<?> invoker, final Invocation invocation) {
+
+        // 获得 Future 对象 。由于异步不知道服务提供方什么时候会执行完毕，所以要添加回调等待服务提供者返回结果。
+        Future<?> f = RpcContext.getContext().getFuture();
+
+        // 设置回调 ResponseCallback 到 DefaultFuture中
+        if (f instanceof FutureAdapter) {
+            ResponseFuture future = ((FutureAdapter<?>) f).getFuture();
+
+            // 当provider返回响应时，执行DefaultFuture.doReceived方法，该方法会调用ResponseCallback对象的done或者caught方法
+            future.setCallback(new ResponseCallback() {
+                /**
+                 * 正常回调
+                 * @param rpcResult
+                 */
+                @Override
+                public void done(Object rpcResult) {
+                    if (rpcResult == null) {
+                        logger.error(new IllegalStateException("invalid result value : null, expected " + Result.class.getName()));
+                        return;
+                    }
+                    ///must be rpcResult
+                    if (!(rpcResult instanceof Result)) {
+                        logger.error(new IllegalStateException("invalid result type :" + rpcResult.getClass() + ", expected " + Result.class.getName()));
+                        return;
+                    }
+
+                    // 根据调用结果，调用 ResponseCallback 对象的 done 或者 caught 方法
+                    Result result = (Result) rpcResult;
+                    if (result.hasException()) {
+                        fireThrowCallback(invoker, invocation, result.getException());
+                    } else {
+                        fireReturnCallback(invoker, invocation, result.getValue());
+                    }
+                }
+
+                /**
+                 * 触发异常回调方法
+                 * @param exception
+                 */
+                @Override
+                public void caught(Throwable exception) {
+                    fireThrowCallback(invoker, invocation, exception);
+                }
+            });
+        }
+    }
+
+    /**
+     * 触发前置方法：
+     * oninvoke方法：必须具有与原调用方法相同的入参列表。
+     *
+     * @param invoker    Invoker 对象
+     * @param invocation Invocation 对象
+     */
+    private void fireInvokeCallback(final Invoker<?> invoker, final Invocation invocation) {
+        // 获得前置方法和方法所在对象
+        final Method onInvokeMethod = (Method) StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_INVOKE_METHOD_KEY));
+        final Object onInvokeInst = StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_INVOKE_INSTANCE_KEY));
+        // 没有设置直接返回
+        if (onInvokeMethod == null && onInvokeInst == null) {
+            return;
+        }
+        if (onInvokeMethod == null || onInvokeInst == null) {
+            throw new IllegalStateException("service:" + invoker.getUrl().getServiceKey() + " has a onreturn callback config , but no such " + (onInvokeMethod == null ? "method" : "instance") + " found. url:" + invoker.getUrl());
+        }
+
+        // 设置访问权限
+        if (!onInvokeMethod.isAccessible()) {
+            onInvokeMethod.setAccessible(true);
+        }
+
+        // 获得原调用方法的入参
+        Object[] params = invocation.getArguments();
+        try {
+            // 反射调用前置方法，可以发现 oninvoke 的方法参数要与调用的方法参数一致
+            onInvokeMethod.invoke(onInvokeInst, params);
+        } catch (InvocationTargetException e) {
+            // 触发异常回调
+            fireThrowCallback(invoker, invocation, e.getTargetException());
+        } catch (Throwable e) {
+            // 触发异常回调
+            fireThrowCallback(invoker, invocation, e);
+        }
+    }
+
+    /**
+     * 触发正常回调方法
+     * onreturn方法：至少要有一个入参来接收返回结果
+     *
+     * @param invoker
+     * @param invocation
+     * @param result
+     */
+    private void fireReturnCallback(final Invoker<?> invoker, final Invocation invocation, final Object result) {
+
+        // 获得 onreturn 方法和对象
+        final Method onReturnMethod = (Method) StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_RETURN_METHOD_KEY));
+        final Object onReturnInst = StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_RETURN_INSTANCE_KEY));
+
+        //not set onreturn callback
+        if (onReturnMethod == null && onReturnInst == null) {
+            return;
+        }
+
+        if (onReturnMethod == null || onReturnInst == null) {
+            throw new IllegalStateException("service:" + invoker.getUrl().getServiceKey() + " has a onreturn callback config , but no such " + (onReturnMethod == null ? "method" : "instance") + " found. url:" + invoker.getUrl());
+        }
+        if (!onReturnMethod.isAccessible()) {
+            onReturnMethod.setAccessible(true);
+        }
+
+        // 原调用方法的入参
+        Object[] args = invocation.getArguments();
+
+        Object[] params;
+
+        // onreturn 方法的参数列表
+        Class<?>[] rParaTypes = onReturnMethod.getParameterTypes();
+
+        // onreturn 方法的参数多于1个
+        if (rParaTypes.length > 1) {
+
+            // onreturn(xx, Object[]) 两个参数：第一个参数与真实方法返回结果类型相同【用来接收返回结果】，第二个接收所有的真实请求参数
+            if (rParaTypes.length == 2 && rParaTypes[1].isAssignableFrom(Object[].class)) {
+                params = new Object[2];
+                params[0] = result;
+                params[1] = args;
+
+                // onreturn(xx, Object... args) 多个参数：第一个参数与真实方法的返回结果类型相同，后边几个接收所有的真实请求参数
+            } else {
+                params = new Object[args.length + 1];
+                params[0] = result;
+                System.arraycopy(args, 0, params, 1, args.length);
+            }
+
+            // onreturn(xx) 只有一个参数：接收返回执行结果
+        } else {
+            params = new Object[]{result};
+        }
+
+        // 调用方法
+        try {
+            onReturnMethod.invoke(onReturnInst, params);
+        } catch (InvocationTargetException e) {
+            fireThrowCallback(invoker, invocation, e.getTargetException());
+        } catch (Throwable e) {
+            fireThrowCallback(invoker, invocation, e);
+        }
+    }
+
+    /**
+     * 触发异常回调用方法
+     * onthrow 方法的参数列表：至少要有一个入参且第一个入参类型为Throwable或其子类，接收返回结果。
+     *
+     * @param invoker
+     * @param invocation
+     * @param exception
+     */
+    private void fireThrowCallback(final Invoker<?> invoker, final Invocation invocation, final Throwable exception) {
+
+        // 获得 onthrow 方法和对象
+        final Method onthrowMethod = (Method) StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_THROW_METHOD_KEY));
+        final Object onthrowInst = StaticContext.getSystemContext().get(StaticContext.getKey(invoker.getUrl(), invocation.getMethodName(), Constants.ON_THROW_INSTANCE_KEY));
+
+        if (onthrowMethod == null && onthrowInst == null) {
+            return;
+        }
+        if (onthrowMethod == null || onthrowInst == null) {
+            throw new IllegalStateException("service:" + invoker.getUrl().getServiceKey() + " has a onthrow callback config , but no such " + (onthrowMethod == null ? "method" : "instance") + " found. url:" + invoker.getUrl());
+        }
+        if (!onthrowMethod.isAccessible()) {
+            onthrowMethod.setAccessible(true);
+        }
+
+        // 获取 onthrow 方法的参数列表
+        Class<?>[] rParaTypes = onthrowMethod.getParameterTypes();
+
+        // onthrow 方法的参数第一个值必须为异常类型，所以这里需要构造参数列表
+        if (rParaTypes[0].isAssignableFrom(exception.getClass())) {
+            try {
+                // 原调用方法的参数列表
+                Object[] args = invocation.getArguments();
+                Object[] params;
+
+                // onthrow 方法的参数个数 > 1
+                if (rParaTypes.length > 1) {
+                    // 原调用方法只有一个参数，而且这个参数是数组类型
+                    // onthrow(xx, Object[]) 两个参数：第一个参数接收 exception，第二个接收所有的真实请求参数
+                    if (rParaTypes.length == 2 && rParaTypes[1].isAssignableFrom(Object[].class)) {
+                        params = new Object[2];
+                        params[0] = exception;
+                        params[1] = args;
+
+                        // 原调用方法的参数多于一个
+                        // onthrow(xx, Object... args) 多个参数：第一个参数接收exception，后边几个接收所有的真实请求参数
+                    } else {
+                        params = new Object[args.length + 1];
+                        params[0] = exception;
+                        System.arraycopy(args, 0, params, 1, args.length);
+                    }
+
+                    // 原调用方法没有参数
+                    // onthrow(xx) 只有一个参数：接收exception
+                } else {
+                    params = new Object[]{exception};
+                }
+
+                // 调用方法
+                onthrowMethod.invoke(onthrowInst, params);
+            } catch (Throwable e) {
+                logger.error(invocation.getMethodName() + ".call back method invoke error . callback method :" + onthrowMethod + ", url:" + invoker.getUrl(), e);
+            }
+        } else {
+            logger.error(invocation.getMethodName() + ".call back method invoke error . callback method :" + onthrowMethod + ", url:" + invoker.getUrl(), exception);
+        }
+    }
+}
