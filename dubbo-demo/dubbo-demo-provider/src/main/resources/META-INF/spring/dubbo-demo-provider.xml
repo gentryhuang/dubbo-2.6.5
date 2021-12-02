@@ -30,12 +30,13 @@
 
     <!-- use dubbo protocol to export service on port 20880 -->
     <dubbo:protocol name="dubbo" port="20880" server="netty4"/>
-    <dubbo:protocol name="http" port="8099" server="tomcat"/>
+<!--    <dubbo:protocol name="http" port="8099" server="tomcat"/>-->
 
     <!-- service implementation, as same as regular local bean -->
     <bean id="demoService" class="com.alibaba.dubbo.demo.provider.DemoServiceImpl"/>
 
     <!-- declare the service interface to be exported -->
     <dubbo:service interface="com.alibaba.dubbo.demo.DemoService" ref="demoService" group="abc"/>
+    
 
 </beans>

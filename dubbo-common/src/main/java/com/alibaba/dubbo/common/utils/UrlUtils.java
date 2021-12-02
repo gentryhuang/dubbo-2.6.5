@@ -420,7 +420,9 @@ public class UrlUtils {
          * todo 服务分组 group 和 服务版本 version
          * group: 一般指一个接口多种实现，可以使用 group 区分
          * version: 一般指服务接口版本升级
-         * todo 消费方可以通过指定 group 和 version 来调用对应的服务
+         * todo 消费方可以通过指定 group 和 version 来调用对应的服务。其中 group 只要包含提供方即可，也就是说消费方可以引入实际服务提供方不存在的分组，如：
+         * 生产端：<dubbo:service interface="xxx" ref="xxxImpl" group="abc"/>
+         * 消费端：<dubbo:reference id="yyy" interface="xxx" group="abc,efg,..."/>  // 包含即可，表示符合
          */
         // 获取 group、version、classifier
         String consumerGroup = consumerUrl.getParameter(Constants.GROUP_KEY);
@@ -431,7 +433,7 @@ public class UrlUtils {
         String providerClassifier = providerUrl.getParameter(Constants.CLASSIFIER_KEY, Constants.ANY_VALUE);
 
         // group、version、classifier 是否相同
-        // todo 消费端 * 匹配
+        // todo 消费端 * 匹配，或 abc,efg 只要包含就匹配
         return (Constants.ANY_VALUE.equals(consumerGroup) || StringUtils.isEquals(consumerGroup, providerGroup) || StringUtils.isContains(consumerGroup, providerGroup))
                 && (Constants.ANY_VALUE.equals(consumerVersion) || StringUtils.isEquals(consumerVersion, providerVersion))
                 && (consumerClassifier == null || Constants.ANY_VALUE.equals(consumerClassifier) || StringUtils.isEquals(consumerClassifier, providerClassifier));

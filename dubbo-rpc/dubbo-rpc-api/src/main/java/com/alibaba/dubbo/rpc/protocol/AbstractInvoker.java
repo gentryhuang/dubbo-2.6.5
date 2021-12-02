@@ -209,6 +209,7 @@ public abstract class AbstractInvoker<T> implements Invoker<T> {
                 return new RpcResult(e);
             } else {
                 if (te instanceof RpcException) {
+                    // 设置异常 code 码，表示 RPC 业务处理异常
                     ((RpcException) te).setCode(RpcException.BIZ_EXCEPTION);
                 }
                 return new RpcResult(te);

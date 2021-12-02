@@ -706,7 +706,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
         // 1 将消费端URL参数配置项合并到服务提供者的URL中
         // 1.1 移除 Provider URL 中只在 Provider 端生效的属性，如：threadname、threadpool、corethreads、threads、queues、alive、transporter
-        // 1.2 用 Consumer 端的参数配置（parameters）覆盖 Provider URL 的相应配置，但：version、group、methods、timestamp等参数以Provider端的配置优先，因为它们是远程配置的参数。
+        // todo 1.2 用 Consumer 端的参数配置（parameters）覆盖 Provider URL 的相应配置，但：version、group、methods、timestamp等参数以Provider端的配置优先，因为它们是远程配置的参数。
         // 1.3 合并 Provider 端和 Consumer 端配置的 Filter 以及 Listener
         providerUrl = ClusterUtils.mergeUrl(providerUrl, queryMap);
 

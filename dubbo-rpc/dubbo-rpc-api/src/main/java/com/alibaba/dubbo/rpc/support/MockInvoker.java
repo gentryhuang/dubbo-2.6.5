@@ -136,6 +136,7 @@ final public class MockInvoker<T> implements Invoker<T> {
             } else {
 
                 // 创建自定义的异常，即 throw后的异常
+                // todo 通过业务异常码抛出去
                 Throwable t = getThrowable(mock);
                 throw new RpcException(RpcException.BIZ_EXCEPTION, t);
             }

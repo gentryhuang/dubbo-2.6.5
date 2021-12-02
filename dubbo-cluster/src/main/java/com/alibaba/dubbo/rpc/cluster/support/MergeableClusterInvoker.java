@@ -94,7 +94,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
         // 获得配置的方法级别的Merger 扩展名
         String merger = getUrl().getMethodParameter(invocation.getMethodName(), Constants.MERGER_KEY);
 
-        // 如果没有配置merger扩展，则默认所有调用实例都是一个组的，即不做结果合并。直接调用首个可用的Invoker对象。没有可用的，就调用第一个Invoker
+        // todo 注意，在引用多个分组时，可以不指定 merger 合并调用结果。不指定的话，只会调用其中一个可用的 Invoker（这个 Invoker 是通过 Cluster 合并后的）
         if (ConfigUtils.isEmpty(merger)) {
             for (final Invoker<T> invoker : invokers) {
                 if (invoker.isAvailable()) {

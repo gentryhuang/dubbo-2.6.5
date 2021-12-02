@@ -37,29 +37,10 @@ public class Consumer {
             String hello = demoService.sayHello("hello");
             System.out.println(hello);
             try {
-                Thread.sleep(1000*3);
-            }catch (Exception ex){
+                Thread.sleep(1000 * 3);
+            } catch (Exception ex) {
                 ///..
             }
         }
-
-
-//        String hello = demoService.sayHello("world"); // call remote method
-//        System.out.println(hello);
-//
-//        Future<String> future = RpcContext.getContext().getFuture();
-//        System.out.println("future:" + future);
-//        String result = future.get();
-//
-//        System.out.println(result); // get result
-
-
-//
-//       String hello = demoService.sayHello("world"); // call remote method
-//
-//
-//        System.out.println(hello);
-
-
     }
 }

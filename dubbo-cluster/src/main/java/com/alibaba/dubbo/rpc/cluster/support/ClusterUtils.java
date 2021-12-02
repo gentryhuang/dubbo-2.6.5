@@ -106,7 +106,8 @@ public class ClusterUtils {
                 map.put(Constants.VERSION_KEY, version);
             }
             // 3 todo group 参数 使用 provider side
-            // todo 注意分组的情况，分组使用的是服务端。如果服务端分组存在的情况下
+            // todo 注意分组的情况，分组使用的是服务端。如果服务端分组存在的情况下。
+            // todo 其实走到这里，如果消费端有分组的话，服务端一定有分组，因为进入到这里是消费端匹配的服务提供者URL。不会存在消费端有分组，而服务端没有的情况。
             String group = remoteMap.get(Constants.GROUP_KEY);
             if (group != null && group.length() > 0) {
                 map.put(Constants.GROUP_KEY, group);
