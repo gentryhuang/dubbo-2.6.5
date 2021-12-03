@@ -236,7 +236,7 @@ public class RegistryProtocol implements Protocol {
     }
 
     /**
-     * 暴露服务，并启动 Server
+     * 暴露服务并启动 Server，协议不同，实现不同
      *
      * @param originInvoker 封装服务的 AbstractProxyInvoker 对象
      * @param <T>
@@ -288,8 +288,8 @@ public class RegistryProtocol implements Protocol {
     /**
      * 对修改了URL的Invoker重新暴露
      *
-     * @param originInvoker
-     * @param newInvokerUrl
+     * @param originInvoker 之前暴露出的 Invoker
+     * @param newInvokerUrl 配置应用到服务提供者URL后的值
      */
     @SuppressWarnings("unchecked")
     private <T> void doChangeLocalExport(final Invoker<T> originInvoker, URL newInvokerUrl) {
@@ -299,10 +299,11 @@ public class RegistryProtocol implements Protocol {
         final ExporterChangeableWrapper<T> exporter = (ExporterChangeableWrapper<T>) bounds.get(key);
         if (exporter == null) {
             logger.warn(new IllegalStateException("error state, exporter should not be null"));
+
         } else {
             // 创建 InvokerDelegete 对象
             final Invoker<T> invokerDelegete = new InvokerDelegete<T>(originInvoker, newInvokerUrl);
-            // 重新暴露Invoker，并设置到缓存中
+            // todo  重新暴露Invoker，覆盖缓存
             exporter.setExporter(protocol.export(invokerDelegete));
         }
     }
@@ -434,7 +435,7 @@ public class RegistryProtocol implements Protocol {
         // todo 分组聚合 group="a,b" or group="*"
         if (group != null && group.length() > 0) {
 
-            // 如果多个分组 -> todo 分组聚合，将每个组的服务调用一次，然后聚合结果
+            // 如果多个分组 -> todo 分组聚合，将每个组的服务调用一次，然后聚合结果，当然需要有 Merger ，没有 Merger 不会执行合并，只执行调用，和一般的 ClusterInvoker 作用类似
             if ((Constants.COMMA_SPLIT_PATTERN.split(group)).length > 1 || "*".equals(group)) {
 
                 // 通过SPI加载 MergeableCluster实例，并调用 doRefer 继续执行引用服务逻辑。
@@ -567,7 +568,7 @@ public class RegistryProtocol implements Protocol {
     private class OverrideListener implements NotifyListener {
 
         /**
-         * 订阅URL
+         * 服务提供方订阅URL
          */
         private final URL subscribeUrl;
         /**
@@ -581,7 +582,8 @@ public class RegistryProtocol implements Protocol {
         }
 
         /**
-         * 对原本注册的subscribeUrl进行校验，如果url发生了变化，那么要重新export
+         * 对原本注册的subscribeUrl进行校验，如果url发生了变化，那么要重新export。
+         * todo 服务提供方只订阅配置
          *
          * @param urls 已注册信息列表，总不能为空【没有匹配的就是创建一个empty：//...】，含义同 {@link com.alibaba.dubbo.registry.RegistryService#lookup(URL)}的返回值
          */
@@ -629,7 +631,7 @@ public class RegistryProtocol implements Protocol {
             //基于originUrl，合并配置规则，生成新的 newUrl 对象 。 todo 配置规则生效的地方
             URL newUrl = getConfigedInvokerUrl(configurators, originUrl);
 
-            // 配置规则生效，需要重新暴露服务
+            // 配置规则生效，需要重新暴露服务。todo 即暴露的 Invoker 中的服务URL 应用配置信息后是否改变，改变就重新暴露。
             if (!currentUrl.equals(newUrl)) {
                 // 重新将invoker 暴露为exporter
                 RegistryProtocol.this.doChangeLocalExport(originInvoker, newUrl);

@@ -37,7 +37,7 @@ class InjvmInvoker<T> extends AbstractInvoker<T> {
      */
     private final String key;
     /**
-     * Exporter集合，在InjvmInvoker#invoke(invocation)方法中，可以通过该Invoker的key属性，获得对应的Exporter对象
+     * Exporter集合，在InjvmInvoker#invoke(invocation)方法中，可以通过该Invoker的key属性，获得对应的Exporter对象。todo 即本地暴露和引用的关联就在这个本地内存 exportMap 中，通过服务键，一个存，一个取，
      * key: 服务键
      * 该值实际就是 {@link com.alibaba.dubbo.rpc.protocol.AbstractProtocol#exporterMap}。
      */

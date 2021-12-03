@@ -287,7 +287,7 @@ public class HeaderExchangeHandler implements ChannelHandlerDelegate {
                 Request request = (Request) message;
                 // 3.1.1 只读请求
                 if (request.isEvent()) {
-                    // 在Channel上设置'channel.readonly' 标志，然后往下传即可
+                    // 在Channel上设置 'channel.readonly' 标志，然后往下传即可
                     // todo 注意，这里没有再调用 handler.recived 方法，说明不会再往下处理了
                     handlerEvent(channel, request);
                     // 处理普通请求

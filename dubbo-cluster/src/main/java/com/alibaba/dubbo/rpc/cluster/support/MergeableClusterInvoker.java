@@ -88,7 +88,7 @@ public class MergeableClusterInvoker<T> implements Invoker<T> {
     @SuppressWarnings("rawtypes")
     public Result invoke(final Invocation invocation) throws RpcException {
 
-        // 通过服务目录Directory获得Invoker集合
+        // 通过服务目录Directory获得Invoker集合。todo 获取服务列表和其它的获取没差别，差别在服务目录生成或刷新时，每个分组下的服务列表已经伪装成一个 Invoker 了
         List<Invoker<T>> invokers = directory.list(invocation);
 
         // 获得配置的方法级别的Merger 扩展名

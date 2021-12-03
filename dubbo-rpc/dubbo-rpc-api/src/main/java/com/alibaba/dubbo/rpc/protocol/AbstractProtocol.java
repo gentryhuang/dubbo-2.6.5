@@ -45,7 +45,7 @@ public abstract class AbstractProtocol implements Protocol {
     protected final Logger logger = LoggerFactory.getLogger(getClass());
 
     /**
-     * 用于存储暴露出去的服务集合（包括 injvm 协议暴露的服务）
+     * todo 用于存储暴露出去的服务集合（包括 injvm 协议暴露的服务）
      * 1 key: 服务键，{@link #serviceKey(URL)} 或者 {@link URL#getServiceKey()},不同协议会有所差别：
      * - InjvmProtocol使用 URL#getServicekey()
      * - DubboProtocol使用 #serviceKey(URL)

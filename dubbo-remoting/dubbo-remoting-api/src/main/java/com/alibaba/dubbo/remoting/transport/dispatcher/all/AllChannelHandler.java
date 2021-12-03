@@ -35,7 +35,6 @@ import java.util.concurrent.RejectedExecutionException;
  * 1 将所有网络事件和消息交给线程池
  * 2 覆写了 WrappedChannelHandler 中除了 sent() 方法之外的其它方法，执行底层的ChannelHander的逻辑都放在了线程池中
  * 3 注意，AllChannelHandler 并没有覆写 sent 方法，发送消息是直接在当前线程调用 sent() 方法完成的。
- *
  */
 public class AllChannelHandler extends WrappedChannelHandler {
 
@@ -51,7 +50,7 @@ public class AllChannelHandler extends WrappedChannelHandler {
      */
     @Override
     public void connected(Channel channel) throws RemotingException {
-        // 获取线程池
+        // 获取线程池，从父类中获取
         ExecutorService cexecutor = getExecutorService();
         try {
             // 将CONNECTED 事件的处理封装成ChannelEventRunnable提交到线程池中执行

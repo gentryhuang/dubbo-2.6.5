@@ -69,9 +69,9 @@ public class JavassistProxyFactory extends AbstractProxyFactory {
              * AbstractProxyInvoker.invoke(Invocation) ->  return new RpcResult(doInvoke(proxy, invocation.getMethodName(), invocation.getParameterTypes(), invocation.getArguments()));
              *
              * @param proxy          服务实例
-             * @param methodName     方法名
-             * @param parameterTypes 方法参数类型数组
-             * @param arguments      方法参数数组
+             * @param methodName     方法名 (Invocation 中的)
+             * @param parameterTypes 方法参数类型数组 (Invocation 中的)
+             * @param arguments      方法参数数组 (Invocation 中的)
              * @return
              * @throws Throwable
              */

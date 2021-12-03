@@ -670,6 +670,7 @@ public class RegistryDirectory<T> extends AbstractDirectory<T> implements Notify
 
                         // todo 通过 Protocol.refer 方法创建对应的 Invoker 对象，并使用 InvokerDelegate 装饰引用的 Invoker
                         // todo 如使用 DubboProtocol、HttpProtocl  协议进行服务引用，此时 url 是 providerUrl 处理后的
+                        // todo 具体协议的服务使用具体协议进行暴露，这也体现了多协议
                         invoker = new InvokerDelegate<T>(protocol.refer(serviceType, url), url, providerUrl);
                     }
 

@@ -247,7 +247,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
         /*----------- 1 泛化调用处理 --------------*/
 
-        // 若未设置 generic 属性，就使用ConsumerConfig的generic属性
+        // 若未设置 generic 属性，就使用ConsumerConfig的generic属性。todo 对于泛化调用和泛化实现的使用，都在服务消费方配置。
         if (getGeneric() == null && getConsumer() != null) {
             setGeneric(getConsumer().getGeneric());
         }
@@ -557,7 +557,7 @@ public class ReferenceConfig<T> extends AbstractReferenceConfig {
 
 
                 /*---------------- 3.2 处理非直连的方式 ------------------*/
-                // 没有定义直连，就从注册中心中获取服务提供者
+                // 没有定义直连，就从注册中心中获取服务提供者。todo 这里只是持有服务引用信息，还没有获取到注册中心上的服务提供者URL，获取的动作发生在订阅的时候。
             } else {
 
                 // todo 加载注册中心 URL 数组，支持多注册中心。注意，注册中心的 URL 的协议已经被替换成了 Registry ，而不是真正的协议，如 zookeeper

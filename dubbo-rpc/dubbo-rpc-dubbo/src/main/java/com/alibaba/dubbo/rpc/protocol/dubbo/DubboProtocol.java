@@ -350,7 +350,7 @@ public class DubboProtocol extends AbstractProtocol {
 
     @Override
     public <T> Exporter<T> export(Invoker<T> invoker) throws RpcException {
-        // 1 获取URL
+        // 1 获取URL，这个 invoker 是 InvokerDelegete ，其中的 URL 是服务提供者的URL，在使用 protocol.export 时，使用具体协议暴露服务
         URL url = invoker.getUrl();
         //2 服务暴露
         //2.1 获取服务键,如：demoGroup/com.alibaba.dubbo.demo.DemoService:1.0.0:20880
@@ -419,10 +419,10 @@ public class DubboProtocol extends AbstractProtocol {
      * @return
      */
     private ExchangeServer createServer(URL url) {
-        // 1 默认开启 在 Server 关闭的时候，只能发送 ReadOnly 请求
+        // 1 默认开启 在 Server 关闭的时候，只能发送 ReadOnly 请求（todo 优雅停机）
         url = url.addParameterIfAbsent(Constants.CHANNEL_READONLYEVENT_SENT_KEY, Boolean.TRUE.toString());
 
-        // 2 默认开启 心跳 【heartbeat参数会在HeaderExchangeServer启动心跳计时器使用】,默认值为 60000，表示默认的心跳时间间隔为 60 秒
+        // 2 默认开启 心跳 【heartbeat参数会在HeaderExchangeServer启动心跳计时器使用】,默认值为 60000，表示默认的心跳时间间隔为 60 秒 （todo 健康检测）
         url = url.addParameterIfAbsent(Constants.HEARTBEAT_KEY, String.valueOf(Constants.DEFAULT_HEARTBEAT));
 
         // 3 检测SERVER_KEY参数指定的Transporter扩展实现是否合法, 即Dubbo SPI扩展是否存在，默认是Netty
@@ -431,7 +431,7 @@ public class DubboProtocol extends AbstractProtocol {
             throw new RpcException("Unsupported server type: " + str + ", url: " + url);
         }
 
-        // 4 设置编码解码器参数 ，默认为 DubboCountCodec
+        // 4 设置编码解码器参数 ，默认为 DubboCountCodec（todo 设置编解码）
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
 
         // 5 创建启动服务器
@@ -619,10 +619,10 @@ public class DubboProtocol extends AbstractProtocol {
         // 1. 获取客户端类型，默认为netty。下面逻辑会检查该扩展
         String str = url.getParameter(Constants.CLIENT_KEY, url.getParameter(Constants.SERVER_KEY, Constants.DEFAULT_REMOTING_CLIENT));
 
-        // 2. 设置编解码器Codec2的扩展名,即DubboCountCodec {@link DubboCountCodec}
+        // 2. 设置编解码器Codec2的扩展名,即DubboCountCodec {@link DubboCountCodec} todo 编解码
         url = url.addParameter(Constants.CODEC_KEY, DubboCodec.NAME);
 
-        // 3. 默认开启heartbeat
+        // 3. 默认开启heartbeat，todo 健康检测
         url = url.addParameterIfAbsent(Constants.HEARTBEAT_KEY, String.valueOf(Constants.DEFAULT_HEARTBEAT));
 
         // 校验配置的Client 的 Dubbo SPI拓展是否存在，若不存在，抛出RpcException

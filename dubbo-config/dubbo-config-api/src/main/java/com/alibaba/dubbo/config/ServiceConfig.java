@@ -298,7 +298,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             }
         }
 
-        // 检测ref是否泛化接口的实现
+        // 检测ref是否泛化接口的实现。todo 这里也可以看出，对于服务提供方不管是 泛化调用，还是泛化实现，服务提供方都无需配置 generic 参数。即使是 泛化实现，判断服务 ref 的类型即可。
         if (ref instanceof GenericService) {
             // 设置 interfaceClass 为 GenericService.class
             interfaceClass = GenericService.class;
@@ -584,9 +584,9 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
             contextPath = provider.getContextpath();
         }
         // -------- 主机绑定 --------/
-        // 获得注册到注册中心的服务提供者host，并为map设置bind.ip , anyhost 两个key
+        // 获得注册到注册中心的服务提供者host，并为 ma p设置 bind.ip , anyhost 两个key
         String host = this.findConfigedHosts(protocolConfig, registryURLs, map);
-        // 获取端口，并为map设置bing.port key
+        // 获取端口，并为 map 设置 bing.port
         Integer port = this.findConfigedPorts(protocolConfig, name, map);
 
 
@@ -624,7 +624,7 @@ public class ServiceConfig<T> extends AbstractServiceConfig {
                 if (registryURLs != null && !registryURLs.isEmpty()) {
 
                     // 遍历注册中心URL数组
-                    // todo 多注册中心暴露
+                    // todo 多注册中心(集群)暴露
                     for (URL registryURL : registryURLs) {
                         // dynamic属性：服务是否动态注册，如果设为false,注册后将显示disable状态，需要人工启用，并且服务提供者停止时，也不会自动下线，需要人工禁用
                         url = url.addParameterIfAbsent(Constants.DYNAMIC_KEY, registryURL.getParameter(Constants.DYNAMIC_KEY));
